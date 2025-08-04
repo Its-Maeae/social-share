@@ -422,19 +422,24 @@ async function loadFolders() {
         
         folderList.innerHTML = '';
         
-        // Standard-Ordner zuerst
+        // Standard-Ordner "Alle Inhalte" zuerst
         const allFolder = { id: 'all', name: 'Alle Inhalte', icon: '📄', type: 'system' };
-        const folderItem = createFolderElement(allFolder);
-        folderList.appendChild(folderItem);
+        const allFolderItem = await createFolderElement(allFolder);
+        folderList.appendChild(allFolderItem);
         
-        // Dann andere Ordner (System-Ordner und User-Ordner)
+        // System-Ordner (Favoriten, Wichtig)
         const systemFolders = folders.filter(f => f.type === 'system');
-        const userFolders = folders.filter(f => f.type === 'user' && !f.parentId);
-        
-        [...systemFolders, ...userFolders].forEach(folder => {
-            const folderItem = createFolderElement(folder);
+        for (const folder of systemFolders) {
+            const folderItem = await createFolderElement(folder);
             folderList.appendChild(folderItem);
-        });
+        }
+        
+        // Benutzer-Ordner
+        const userFolders = folders.filter(f => f.type === 'user' && !f.parentId);
+        for (const folder of userFolders) {
+            const folderItem = await createFolderElement(folder);
+            folderList.appendChild(folderItem);
+        }
     } catch (error) {
         console.error('Fehler beim Laden der Ordner:', error);
     }
