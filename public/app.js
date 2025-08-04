@@ -903,7 +903,7 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-// Event Listeners
+// Event Listenerss
 window.onclick = function(event) {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
