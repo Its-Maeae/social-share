@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Share</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-app {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        h1, h2 {
+            color: #5a67d8;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .nav-bar {
+            background: #5a67d8;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #4c51bf;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-success {
+            background: #48bb78;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #5a67d8;
+        }
+
+        input.folder-input {
+            width: auto;
+            padding: 8px;
+            margin-bottom: 0;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #5a67d8;
+            border-bottom-color: #5a67d8;
+            background: #f7fafc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .friend-item, .share-item, .request-item {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #5a67d8;
+        }
+
+        .friend-list, .share-list, .request-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* Ordnerstruktur für erhaltene Inhalte */
+        .received-content-container {
+            display: flex;
+            gap: 20px;
+            height: 600px;
+        }
+
+        .folder-sidebar {
+            width: 300px;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            overflow-y: auto;
+        }
+
+        .folder-sidebar h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .folder-list {
+            list-style: none;
+        }
+
+        .folder-item {
+            margin-bottom: 8px;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .folder-header:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .folder-header.active {
+            background: #5a67d8;
+            color: white;
+            border-color: #5a67d8;
+        }
+
+        .folder-toggle {
+            font-size: 12px;
+            margin-right: 8px;
+            transition: transform 0.3s ease;
+            width: 16px;
+            text-align: center;
+        }
+
+        .folder-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .folder-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .folder-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .folder-count {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .folder-header.active .folder-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .folder-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .folder-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .folder-actions button:hover {
+            background: #cbd5e0;
+            transform: none;
+        }
+
+        .folder-header.active .folder-actions button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .folder-header.active .folder-actions button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .folder-children {
+            margin-left: 20px;
+            margin-top: 5px;
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .folder-children.collapsed {
+            max-height: 0;
+        }
+
+        .add-folder-form {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px dashed #cbd5e0;
+        }
+
+        .received-main-content {
+            flex: 1;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .content-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a5568;
+            margin: 0;
+        }
+
+        .share-item-enhanced {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #5a67d8;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .share-item-enhanced:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .share-item-actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .share-item-content {
+            padding-right: 100px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .close:hover {
+            color: #4a5568;
+        }
+
+        .checkbox-group {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+
+        .folder-select-modal .checkbox-group {
+            max-height: 300px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #5a67d8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #48bb78;
+        }
+
+        .notification.error {
+            background: #f56565;
+        }
+
+        .share-type-icons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .share-type-btn {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .share-type-btn.active {
+            border-color: #5a67d8;
+            background: #f7fafc;
+            color: #5a67d8;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .received-content-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .folder-sidebar {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            
+            .nav-buttons {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .nav-buttons button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login/Register Form -->
+    <div id="authContainer" class="auth-container">
+        <h1>Social Share</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchAuthTab('login')">Anmelden</div>
+            <div class="tab" onclick="switchAuthTab('register')">Registrieren</div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="tab-content active">
+            <form onsubmit="login(event)">
+                <div class="form-group">
+                    <label>Benutzername:</label>
+                    <input type="text" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>Passwort:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit">Anmelden</button>
+            </form>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerForm" class="tab-content">
+            <form onsubmit="register(event)">
+                <div class="form-group">
+                    <label>Benutzername:</label>
+                    <input type="text" id="regUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>E-Mail:</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>Passwort:</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>Passwort bestätigen:</label>
+                    <input type="password" id="regPasswordConfirm" required>
+                </div>
+                <button type="submit">Registrieren</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="container hidden">
+        <div class="nav-bar">
+            <div class="user-info">
+                <div class="avatar" id="userAvatar">U</div>
+                <span id="welcomeMessage">Willkommen!</span>
+            </div>
+            <div class="nav-buttons">
+                <button onclick="showTab('dashboard')">Dashboard</button>
+                <button onclick="showTab('friends')">Freunde</button>
+                <button onclick="showTab('myshares')">Meine Inhalte</button>
+                <button onclick="showTab('received')">Erhaltene Inhalte</button>
+                <button onclick="showTab('account')">Account</button>
+                <button class="btn-secondary" onclick="logout()">Abmelden</button>
+            </div>
+        </div>
+
+        <div class="main-app">
+            <!-- Dashboard Tab -->
+            <div id="dashboardTab" class="tab-content active">
+                <h2>Dashboard</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div class="friend-item">
+                        <div>
+                            <h3>Freunde</h3>
+                            <p id="friendCount">0 Freunde</p>
+                        </div>
+                    </div>
+                    <div class="friend-item">
+                        <div>
+                            <h3>Geteilte Inhalte</h3>
+                            <p id="shareCount">0 Inhalte geteilt</p>
+                        </div>
+                    </div>
+                    <div class="friend-item">
+                        <div>
+                            <h3>Freundschaftsanfragen</h3>
+                            <p id="requestCount">0 offene Anfragen</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                    <h3>Schnellaktionen</h3>
+                    <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+                        <button class="btn-success" onclick="showShareModal()">Inhalt teilen</button>
+                        <button onclick="showTab('friends')">Freunde verwalten</button>
+                        <button onclick="showAddFriendModal()">Freund hinzufügen</button>
+                        <button onclick="showTab('myshares')">Meine Inhalte</button>
+                        <button onclick="showTab('received')">Erhaltene Inhalte</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Friends Tab -->
+            <div id="friendsTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Freunde verwalten</h2>
+                    <button class="btn-success" onclick="showAddFriendModal()">Freund hinzufügen</button>
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchFriendTab('current')">Aktuelle Freunde</div>
+                    <div class="tab" onclick="switchFriendTab('requests')">Anfragen</div>
+                </div>
+
+                <div id="currentFriends" class="tab-content active">
+                    <div class="friend-list" id="friendsList">
+                        <!-- Friends will be loaded here -->
+                    </div>
+                </div>
+
+                <div id="friendRequests" class="tab-content">
+                    <div class="request-list" id="requestsList">
+                        <!-- Friend requests will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Shares Tab -->
+            <div id="mysharesTab" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Meine geteilten Inhalte</h2>
+                    <button class="btn-success" onclick="showShareModal()">Neuen Inhalt teilen</button>
+                </div>
+                <div class="share-list" id="mySharesList">
+                    <!-- My shared content will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Received Shares Tab mit Ordnerstruktur -->
+            <div id="receivedTab" class="tab-content">
+                <h2>Erhaltene Inhalte</h2>
+                <div class="received-content-container">
+                    <!-- Ordner-Sidebar -->
+                    <div class="folder-sidebar">
+                        <h3>Ordner</h3>
+                        <ul class="folder-list" id="folderList">
+                            <!-- Ordner werden hier dynamisch geladen -->
+                        </ul>
+                        
+                        <div class="add-folder-form">
+                            <h4 style="margin-bottom: 10px; font-size: 14px; color: #4a5568;">Neuen Ordner erstellen</h4>
+                            <form onsubmit="createFolder(event)">
+                                <input type="text" class="folder-input" id="newFolderName" placeholder="Ordnername" required>
+                                <button type="submit" class="btn-success btn-small" style="margin-left: 8px;">+</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Hauptinhalt -->
+                    <div class="received-main-content">
+                        <div class="content-header">
+                            <h3 class="content-title" id="currentFolderTitle">Alle erhaltenen Inhalte</h3>
+                            <div>
+                                <span id="contentCount" style="color: #718096; font-size: 14px;">0 Inhalte</span>
+                            </div>
+                        </div>
+                        <div class="share-list" id="receivedSharesList">
+                            <!-- Received shared content will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Tab -->
+            <div id="accountTab" class="tab-content">
+                <h2>Account verwalten</h2>
+                <form onsubmit="updateAccount(event)">
+                    <div class="form-group">
+                        <label>Benutzername:</label>
+                        <input type="text" id="accountUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>E-Mail:</label>
+                        <input type="email" id="accountEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Neues Passwort (leer lassen wenn unverändert):</label>
+                        <input type="password" id="accountPassword">
+                    </div>
+                    <button type="submit" class="btn-success">Änderungen speichern</button>
+                </form>
+                
+                <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #e2e8f0;">
+                    <h3 style="color: #f56565;">Gefahrenzone</h3>
+                    <button class="btn-danger" onclick="deleteAccount()" style="margin-top: 15px;">Account löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Friend Modal -->
+    <div id="addFriendModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addFriendModal')">&times;</span>
+            <h2>Freund hinzufügen</h2>
+            <form onsubmit="sendFriendRequest(event)">
+                <div class="form-group">
+                    <label>Benutzername:</label>
+                    <input type="text" id="friendUsername" required>
+                </div>
+                <button type="submit" class="btn-success">Freundschaftsanfrage senden</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Content Modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('shareModal')">&times;</span>
+            <h2>Inhalt teilen</h2>
+            <form onsubmit="shareContent(event)">
+                <div class="form-group">
+                    <label>Art des Inhalts:</label>
+                    <div class="share-type-icons">
+                        <div class="share-type-btn active" onclick="selectShareType('link')">🔗 Link</div>
+                        <div class="share-type-btn" onclick="selectShareType('image')">🖼️ Bild</div>
+                        <div class="share-type-btn" onclick="selectShareType('document')">📄 Dokument</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Titel:</label>
+                    <input type="text" id="shareTitle" required>
+                </div>
+
+                <div class="form-group" id="linkGroup">
+                    <label>Link URL:</label>
+                    <input type="url" id="shareLink">
+                </div>
+
+                <div class="form-group hidden" id="fileGroup">
+                    <label>Datei:</label>
+                    <input type="file" id="shareFile">
+                </div>
+
+                <div class="form-group">
+                    <label>Beschreibung:</label>
+                    <textarea id="shareDescription" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mit folgenden Freunden teilen:</label>
+                    <div class="checkbox-group" id="friendsCheckboxes">
+                        <!-- Friend checkboxes will be loaded here -->
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-success">Inhalt teilen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ordner auswählen Modal -->
+    <div id="folderSelectModal" class="modal">
+        <div class="modal-content folder-select-modal">
+            <span class="close" onclick="closeModal('folderSelectModal')">&times;</span>
+            <h2>Zu Ordner hinzufügen</h2>
+            <div class="form-group">
+                <label>Wählen Sie einen oder mehrere Ordner:</label>
+                <div class="checkbox-group" id="folderCheckboxes">
+                    <!-- Folder checkboxes will be loaded here -->
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeModal('folderSelectModal')">Abbrechen</button>
+                <button class="btn-success" onclick="addToSelectedFolders()">Hinzufügen</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
