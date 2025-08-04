@@ -30,7 +30,6 @@ let currentFolder = 'all';
 let selectedShareForFolder = null;
 let friendsCache = [];
 let foldersCache = [];
-let receivedSharesCache = []; // Cache für erhaltene Shares
 
 // Initialisierung
 function init() {
@@ -115,7 +114,6 @@ function logout() {
     currentFolder = 'all';
     friendsCache = [];
     foldersCache = [];
-    receivedSharesCache = [];
     
     document.getElementById('authContainer').classList.remove('hidden');
     document.getElementById('mainApp').classList.add('hidden');
@@ -422,35 +420,27 @@ async function loadFolders() {
         
         folderList.innerHTML = '';
         
-        // Standard-Ordner "Alle Inhalte" zuerst
+        // Standard-Ordner zuerst
         const allFolder = { id: 'all', name: 'Alle Inhalte', icon: '📄', type: 'system' };
-        const allFolderItem = await createFolderElement(allFolder);
-        folderList.appendChild(allFolderItem);
+        const folderItem = createFolderElement(allFolder);
+        folderList.appendChild(folderItem);
         
-        // System-Ordner (Favoriten, Wichtig)
-        const systemFolders = folders.filter(f => f.type === 'system');
-        for (const folder of systemFolders) {
-            const folderItem = await createFolderElement(folder);
+        // Dann andere Ordner
+        const topLevelFolders = folders.filter(f => !f.parentId);
+        topLevelFolders.forEach(folder => {
+            const folderItem = createFolderElement(folder);
             folderList.appendChild(folderItem);
-        }
-        
-        // Benutzer-Ordner
-        const userFolders = folders.filter(f => f.type === 'user' && !f.parentId);
-        for (const folder of userFolders) {
-            const folderItem = await createFolderElement(folder);
-            folderList.appendChild(folderItem);
-        }
+        });
     } catch (error) {
         console.error('Fehler beim Laden der Ordner:', error);
     }
 }
 
-async function createFolderElement(folder) {
+function createFolderElement(folder) {
     const li = document.createElement('li');
     li.className = 'folder-item';
     
-    // Korrekte Anzahl der Inhalte in diesem Ordner berechnen
-    const count = await getShareCountInFolder(folder.id);
+    const count = folder.id === 'all' ? 0 : getShareCountInFolder(folder.id);
     const hasChildren = foldersCache.some(f => f.parentId === folder.id);
     
     const header = document.createElement('div');
@@ -462,7 +452,7 @@ async function createFolderElement(folder) {
         <span class="folder-name">${folder.name}</span>
         <span class="folder-count">${count}</span>
         <div class="folder-actions">
-            ${folder.type !== 'system' && folder.id !== 'all' ? '<button onclick="deleteFolder(\'' + folder.id + '\', event)" title="Löschen">🗑️</button>' : ''}
+            ${folder.type !== 'system' ? '<button onclick="deleteFolder(\'' + folder.id + '\', event)" title="Löschen">🗑️</button>' : ''}
         </div>
     `;
     
@@ -479,18 +469,9 @@ async function createFolderElement(folder) {
     return li;
 }
 
-async function getShareCountInFolder(folderId) {
-    try {
-        if (folderId === 'all') {
-            return receivedSharesCache.length;
-        }
-        
-        const shareIds = await apiCall(`/api/folder-content/${currentUser.id}/${folderId}`);
-        return shareIds.length;
-    } catch (error) {
-        console.error('Fehler beim Abrufen der Ordner-Inhalte:', error);
-        return 0;
-    }
+function getShareCountInFolder(folderId) {
+    // Diese Funktion müsste erweitert werden, um tatsächliche Zählungen zu machen
+    return 0;
 }
 
 function selectFolder(folderId) {
@@ -539,21 +520,8 @@ async function deleteFolder(folderId, event) {
 
 async function loadReceivedShares() {
     try {
-        // Erst alle erhaltenen Shares laden und cachen
-        receivedSharesCache = await apiCall(`/api/received-shares/${currentUser.id}`);
-        
-        let filteredShares = [];
-        
-        if (currentFolder === 'all') {
-            // Alle Shares anzeigen
-            filteredShares = receivedSharesCache;
-        } else {
-            // Nur Shares aus dem spezifischen Ordner anzeigen
-            const shareIdsInFolder = await apiCall(`/api/folder-content/${currentUser.id}/${currentFolder}`);
-            filteredShares = receivedSharesCache.filter(share => 
-                shareIdsInFolder.includes(share.id)
-            );
-        }
+        const receivedShares = await apiCall(`/api/received-shares/${currentUser.id}`);
+        let filteredShares = receivedShares;
         
         const receivedSharesList = document.getElementById('receivedSharesList');
         const currentFolderTitle = document.getElementById('currentFolderTitle');
@@ -562,6 +530,7 @@ async function loadReceivedShares() {
         let folderName = 'Alle erhaltenen Inhalte';
         
         if (currentFolder !== 'all') {
+            // Für spezifische Ordner müsste die Filterung implementiert werden
             const folder = foldersCache.find(f => f.id === currentFolder);
             if (folder) {
                 folderName = folder.name;
@@ -623,10 +592,6 @@ async function loadReceivedShares() {
         if (filteredShares.length === 0) {
             receivedSharesList.innerHTML = '<p style="text-align: center; color: #718096;">Keine Inhalte in diesem Ordner.</p>';
         }
-        
-        // Ordner-Anzeige aktualisieren (für die Anzahl)
-        await loadFolders();
-        
     } catch (error) {
         console.error('Fehler beim Laden der erhaltenen Shares:', error);
         showNotification('Fehler beim Laden der Inhalte', 'error');
@@ -635,21 +600,25 @@ async function loadReceivedShares() {
 
 async function toggleFavorite(shareId) {
     try {
-        // Prüfen ob bereits in Favoriten
-        const favoritesContent = await apiCall(`/api/folder-content/${currentUser.id}/favorites`);
-        const isInFavorites = favoritesContent.includes(shareId);
+        // Aktuelle Ordner-Zuordnungen für diesen Share abrufen
+        const currentFolders = await apiCall(`/api/folder-content/${currentUser.id}/favorites`);
+        const isInFavorites = currentFolders.includes(shareId);
+        
+        let newFolders = currentFolders.filter(id => id !== shareId);
+        if (!isInFavorites) {
+            newFolders.push(shareId);
+        }
         
         await apiCall('/api/folder-content', {
             method: 'POST',
             body: JSON.stringify({
                 shareId: shareId,
                 folderIds: isInFavorites ? [] : ['favorites'],
-                userId: currentUser.id,
-                action: isInFavorites ? 'remove' : 'add',
-                folderId: 'favorites'
+                userId: currentUser.id
             })
         });
         
+        await loadFolders();
         await loadReceivedShares();
         showNotification(isInFavorites ? 'Von Favoriten entfernt' : 'Zu Favoriten hinzugefügt', 'success');
     } catch (error) {
@@ -659,21 +628,19 @@ async function toggleFavorite(shareId) {
 
 async function toggleImportant(shareId) {
     try {
-        // Prüfen ob bereits als wichtig markiert
-        const importantContent = await apiCall(`/api/folder-content/${currentUser.id}/important`);
-        const isImportant = importantContent.includes(shareId);
+        const currentFolders = await apiCall(`/api/folder-content/${currentUser.id}/important`);
+        const isImportant = currentFolders.includes(shareId);
         
         await apiCall('/api/folder-content', {
             method: 'POST',
             body: JSON.stringify({
                 shareId: shareId,
                 folderIds: isImportant ? [] : ['important'],
-                userId: currentUser.id,
-                action: isImportant ? 'remove' : 'add',
-                folderId: 'important'
+                userId: currentUser.id
             })
         });
         
+        await loadFolders();
         await loadReceivedShares();
         showNotification(isImportant ? 'Als nicht mehr wichtig markiert' : 'Als wichtig markiert', 'success');
     } catch (error) {
@@ -681,7 +648,7 @@ async function toggleImportant(shareId) {
     }
 }
 
-async function showFolderSelectModal(shareId) {
+function showFolderSelectModal(shareId) {
     selectedShareForFolder = shareId;
     
     const folderCheckboxes = document.getElementById('folderCheckboxes');
@@ -691,23 +658,11 @@ async function showFolderSelectModal(shareId) {
         f.type === 'user' || f.id === 'favorites' || f.id === 'important'
     );
     
-    // Aktuelle Ordner-Zuordnungen laden
-    const currentFolderAssignments = {};
-    for (const folder of userFolders) {
-        try {
-            const shareIds = await apiCall(`/api/folder-content/${currentUser.id}/${folder.id}`);
-            currentFolderAssignments[folder.id] = shareIds.includes(shareId);
-        } catch (error) {
-            currentFolderAssignments[folder.id] = false;
-        }
-    }
-    
     userFolders.forEach(folder => {
         const checkboxItem = document.createElement('div');
         checkboxItem.className = 'checkbox-item';
-        const isChecked = currentFolderAssignments[folder.id] ? 'checked' : '';
         checkboxItem.innerHTML = `
-            <input type="checkbox" id="folder_${folder.id}" value="${folder.id}" ${isChecked}>
+            <input type="checkbox" id="folder_${folder.id}" value="${folder.id}">
             <label for="folder_${folder.id}">${folder.icon} ${folder.name}</label>
         `;
         folderCheckboxes.appendChild(checkboxItem);
@@ -738,6 +693,7 @@ async function addToSelectedFolders() {
             })
         });
         
+        await loadFolders();
         await loadReceivedShares();
         closeModal('folderSelectModal');
         
@@ -765,6 +721,7 @@ async function deleteShare(shareId) {
             
             await loadMyShares();
             await loadReceivedShares();
+            await loadFolders();
             await updateDashboard();
             showNotification('Geteilter Inhalt gelöscht', 'success');
         } catch (error) {
@@ -903,7 +860,7 @@ function showNotification(message, type) {
     }, 3000);
 }
 
-// Event Listenerss
+// Event Listeners
 window.onclick = function(event) {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
