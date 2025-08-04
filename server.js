@@ -69,6 +69,7 @@ db.serialize(() => {
     folderId TEXT,
     userId INTEGER,
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(shareId, folderId, userId),
     FOREIGN KEY(shareId) REFERENCES shares(id),
     FOREIGN KEY(userId) REFERENCES users(id)
   )`);
@@ -254,23 +255,22 @@ app.get('/api/my-shares/:userId', (req, res) => {
 
 // Erhaltene Inhalte abrufen
 app.get('/api/received-shares/:userId', (req, res) => {
+  const userId = parseInt(req.params.userId);
+  
   db.all(`
     SELECT s.*, u.username as authorName
     FROM shares s
     JOIN users u ON s.userId = u.id
-    WHERE s.id IN (
-      SELECT s2.id FROM shares s2 
-      WHERE JSON_EXTRACT(s2.sharedWith, '$') LIKE '%' || ? || '%'
-    ) AND s.userId != ?
+    WHERE s.userId != ?
     ORDER BY s.createdAt DESC
-  `, [req.params.userId, req.params.userId], (err, rows) => {
+  `, [userId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     
-    // Parse sharedWith JSON and filter
+    // Parse sharedWith JSON and filter for current user
     const parsedRows = rows.map(row => ({
       ...row,
       sharedWith: JSON.parse(row.sharedWith || '[]')
-    })).filter(row => row.sharedWith.includes(parseInt(req.params.userId)));
+    })).filter(row => row.sharedWith.includes(userId));
     
     res.json(parsedRows);
   });
@@ -293,7 +293,7 @@ app.post('/api/folders', (req, res) => {
 // Ordner abrufen
 app.get('/api/folders/:userId', (req, res) => {
   db.all(
-    'SELECT * FROM folders WHERE userId = ? OR type = "system" ORDER BY name',
+    'SELECT * FROM folders WHERE userId = ? ORDER BY name',
     [req.params.userId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -302,34 +302,55 @@ app.get('/api/folders/:userId', (req, res) => {
   );
 });
 
-// Inhalt zu Ordner hinzufügen/entfernen
+// Inhalt zu Ordner hinzufügen/entfernen - Verbesserte Version
 app.post('/api/folder-content', (req, res) => {
-  const { shareId, folderIds, userId } = req.body;
+  const { shareId, folderIds, userId, action, folderId } = req.body;
   
-  // Erst alle existierenden Zuordnungen für diesen Share löschen
-  db.run('DELETE FROM share_in_folders WHERE shareId = ? AND userId = ?', [shareId, userId], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Dann neue Zuordnungen hinzufügen
-    if (folderIds && folderIds.length > 0) {
-      const placeholders = folderIds.map(() => '(?, ?, ?)').join(',');
-      const values = [];
-      folderIds.forEach(folderId => {
-        values.push(shareId, folderId, userId);
-      });
+  if (action === 'add' && folderId) {
+    // Einzelnen Ordner hinzufügen
+    db.run(
+      'INSERT OR IGNORE INTO share_in_folders (shareId, folderId, userId) VALUES (?, ?, ?)',
+      [shareId, folderId, userId],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+      }
+    );
+  } else if (action === 'remove' && folderId) {
+    // Aus einzelnem Ordner entfernen
+    db.run(
+      'DELETE FROM share_in_folders WHERE shareId = ? AND folderId = ? AND userId = ?',
+      [shareId, folderId, userId],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+      }
+    );
+  } else {
+    // Alle Zuordnungen ersetzen (ursprüngliches Verhalten)
+    db.run('DELETE FROM share_in_folders WHERE shareId = ? AND userId = ?', [shareId, userId], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
       
-      db.run(
-        `INSERT INTO share_in_folders (shareId, folderId, userId) VALUES ${placeholders}`,
-        values,
-        function(err) {
-          if (err) return res.status(500).json({ error: err.message });
-          res.json({ success: true });
-        }
-      );
-    } else {
-      res.json({ success: true });
-    }
-  });
+      if (folderIds && folderIds.length > 0) {
+        const placeholders = folderIds.map(() => '(?, ?, ?)').join(',');
+        const values = [];
+        folderIds.forEach(folderId => {
+          values.push(shareId, folderId, userId);
+        });
+        
+        db.run(
+          `INSERT INTO share_in_folders (shareId, folderId, userId) VALUES ${placeholders}`,
+          values,
+          function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+          }
+        );
+      } else {
+        res.json({ success: true });
+      }
+    });
+  }
 });
 
 // Ordner-Inhalte abrufen
