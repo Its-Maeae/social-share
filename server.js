@@ -332,6 +332,94 @@ app.post('/api/folder-content', (req, res) => {
   });
 });
 
+// Ordner löschen
+app.delete('/api/folders/:folderId', (req, res) => {
+  const { folderId } = req.params;
+  const { userId } = req.query; // userId als Query-Parameter
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'Benutzer-ID erforderlich' });
+  }
+  
+  // Prüfen ob der Ordner dem Benutzer gehört und nicht vom System ist
+  db.get(
+    'SELECT * FROM folders WHERE id = ? AND userId = ? AND type != "system"',
+    [folderId, userId],
+    (err, folder) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!folder) return res.status(404).json({ error: 'Ordner nicht gefunden oder keine Berechtigung' });
+      
+      // Erst alle Share-Zuordnungen für diesen Ordner löschen
+      db.run('DELETE FROM share_in_folders WHERE folderId = ? AND userId = ?', [folderId, userId], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Dann den Ordner selbst löschen
+        db.run('DELETE FROM folders WHERE id = ? AND userId = ?', [folderId, userId], (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ success: true });
+        });
+      });
+    }
+  );
+});
+
+// Ordner umbenennen
+app.put('/api/folders/:folderId', (req, res) => {
+  const { folderId } = req.params;
+  const { name, userId } = req.body;
+  
+  if (!name || !userId) {
+    return res.status(400).json({ error: 'Name und Benutzer-ID erforderlich' });
+  }
+  
+  // Prüfen ob der Ordner dem Benutzer gehört und nicht vom System ist
+  db.get(
+    'SELECT * FROM folders WHERE id = ? AND userId = ? AND type != "system"',
+    [folderId, userId],
+    (err, folder) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!folder) return res.status(404).json({ error: 'Ordner nicht gefunden oder keine Berechtigung' });
+      
+      // Ordner umbenennen
+      db.run(
+        'UPDATE folders SET name = ? WHERE id = ? AND userId = ?',
+        [name.trim(), folderId, userId],
+        function(err) {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ success: true });
+        }
+      );
+    }
+  );
+});
+
+// Globale Variable für Ordner-Zuordnungen Cache
+let folderAssignmentsCache = {};
+
+// Funktion zum Laden aller Ordner-Zuordnungen für den aktuellen Benutzer
+async function loadFolderAssignments() {
+    try {
+        folderAssignmentsCache = {};
+        
+        // Für jeden Ordner die Zuordnungen laden
+        const promises = foldersCache.map(async (folder) => {
+            if (folder.id !== 'all') {
+                try {
+                    const shareIds = await apiCall(`/api/folder-content/${currentUser.id}/${folder.id}`);
+                    folderAssignmentsCache[folder.id] = shareIds;
+                } catch (error) {
+                    console.error(`Fehler beim Laden der Zuordnungen für Ordner ${folder.id}:`, error);
+                    folderAssignmentsCache[folder.id] = [];
+                }
+            }
+        });
+        
+        await Promise.all(promises);
+    } catch (error) {
+        console.error('Fehler beim Laden der Ordner-Zuordnungen:', error);
+    }
+}
+
 // Ordner-Inhalte abrufen
 app.get('/api/folder-content/:userId/:folderId', (req, res) => {
   const { userId, folderId } = req.params;
