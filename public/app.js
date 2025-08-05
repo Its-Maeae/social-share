@@ -755,6 +755,33 @@ async function loadReceivedShares() {
     }
 }
 
+// Globale Variable für Ordner-Zuordnungen Cache
+let folderAssignmentsCache = {};
+
+// Funktion zum Laden aller Ordner-Zuordnungen für den aktuellen Benutzer
+async function loadFolderAssignments() {
+    try {
+        folderAssignmentsCache = {};
+        
+        // Für jeden Ordner die Zuordnungen laden
+        const promises = foldersCache.map(async (folder) => {
+            if (folder.id !== 'all') {
+                try {
+                    const shareIds = await apiCall(`/api/folder-content/${currentUser.id}/${folder.id}`);
+                    folderAssignmentsCache[folder.id] = shareIds;
+                } catch (error) {
+                    console.error(`Fehler beim Laden der Zuordnungen für Ordner ${folder.id}:`, error);
+                    folderAssignmentsCache[folder.id] = [];
+                }
+            }
+        });
+        
+        await Promise.all(promises);
+    } catch (error) {
+        console.error('Fehler beim Laden der Ordner-Zuordnungen:', error);
+    }
+}
+
 // Aktualisierte Toggle-Funktionen mit Cache-Update
 async function toggleFavorite(shareId) {
     try {

@@ -393,33 +393,6 @@ app.put('/api/folders/:folderId', (req, res) => {
   );
 });
 
-// Globale Variable für Ordner-Zuordnungen Cache
-let folderAssignmentsCache = {};
-
-// Funktion zum Laden aller Ordner-Zuordnungen für den aktuellen Benutzer
-async function loadFolderAssignments() {
-    try {
-        folderAssignmentsCache = {};
-        
-        // Für jeden Ordner die Zuordnungen laden
-        const promises = foldersCache.map(async (folder) => {
-            if (folder.id !== 'all') {
-                try {
-                    const shareIds = await apiCall(`/api/folder-content/${currentUser.id}/${folder.id}`);
-                    folderAssignmentsCache[folder.id] = shareIds;
-                } catch (error) {
-                    console.error(`Fehler beim Laden der Zuordnungen für Ordner ${folder.id}:`, error);
-                    folderAssignmentsCache[folder.id] = [];
-                }
-            }
-        });
-        
-        await Promise.all(promises);
-    } catch (error) {
-        console.error('Fehler beim Laden der Ordner-Zuordnungen:', error);
-    }
-}
-
 // Ordner-Inhalte abrufen
 app.get('/api/folder-content/:userId/:folderId', (req, res) => {
   const { userId, folderId } = req.params;
